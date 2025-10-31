@@ -13,6 +13,8 @@
       color: #333;
       line-height: 1.5;
       font-size: 20px;
+      position: relative;
+      overflow-x: hidden;
     }
     .header-bar {
       display: flex;
@@ -41,6 +43,7 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       padding: 20px;
       overflow: hidden;
+      position: relative;
     }
     .schedule-container { display: flex; gap: 20px; margin-bottom: 12px; position: relative; }
     .projects-sidebar {
@@ -55,6 +58,7 @@
       margin-bottom: 6px;
       text-align: center;
     }
+
     .projects-box {
       background: #fff;
       border-radius: 8px;
@@ -67,6 +71,7 @@
       flex-direction: column;
       gap: 8px;
     }
+
     .project {
       padding: 12px 14px;
       color: black;
@@ -153,43 +158,8 @@
       align-items: center;
       justify-content: center;
     }
-
-    /* ✅绿色火焰动画效果 */
-    .cell.selected {
-      position: relative;
-      background: radial-gradient(circle at center, #a6ffb3 0%, #6eff7a 40%, #00cc44 100%);
-      border: 2px solid #00cc44;
-      box-shadow: 0 0 12px 3px rgba(0, 255, 64, 0.7),
-                  0 0 20px 6px rgba(0, 255, 64, 0.4),
-                  0 0 30px 10px rgba(0, 255, 64, 0.2);
-      animation: greenFlame 1.5s infinite ease-in-out;
-      z-index: 2;
-    }
-    @keyframes greenFlame {
-      0% {
-        box-shadow: 0 0 10px 3px rgba(0, 255, 64, 0.6),
-                    0 0 20px 6px rgba(0, 255, 64, 0.3),
-                    0 0 30px 10px rgba(0, 255, 64, 0.2);
-        transform: scale(1);
-        filter: brightness(1);
-      }
-      50% {
-        box-shadow: 0 0 14px 4px rgba(102, 255, 102, 0.9),
-                    0 0 24px 10px rgba(0, 255, 64, 0.6),
-                    0 0 40px 16px rgba(0, 255, 64, 0.3);
-        transform: scale(1.03);
-        filter: brightness(1.2);
-      }
-      100% {
-        box-shadow: 0 0 10px 3px rgba(0, 255, 64, 0.6),
-                    0 0 20px 6px rgba(0, 255, 64, 0.3),
-                    0 0 30px 10px rgba(0, 255, 64, 0.2);
-        transform: scale(1);
-        filter: brightness(1);
-      }
-    }
-
     .cell.highlight { background-color: #e8f4fd; border: 1px dashed #3498db; }
+    .cell.selected { background-color: #d4edda; border: 2px solid #28a745; }
     .cell.occupied { background-color: #fff8e1; }
     .cell.break { background-color: #ddd !important; pointer-events: none; color: #555; font-weight: bold; }
 
@@ -248,9 +218,29 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.12);
     }
     .submit-btn:active { transform: translateY(1px); }
+
     @media (max-width: 900px) {
       .projects-sidebar { width: 200px; }
       .text-input { font-size: 16px; }
+    }
+
+    /* ✅绿色火焰效果 */
+    .green-flame {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      background: radial-gradient(circle at 50% 50%, rgba(0,255,100,0.8), rgba(0,255,150,0.3), transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: flamePulse 0.8s ease-out forwards;
+      z-index: 9999;
+      mix-blend-mode: screen;
+    }
+
+    @keyframes flamePulse {
+      0% { transform: scale(0.5); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.8; }
+      100% { transform: scale(2); opacity: 0; }
     }
   </style>
 </head>
@@ -260,18 +250,22 @@
       <h2>项目排班表</h2>
       <div class="date" id="todayDate">日期：</div>
     </div>
+
     <div class="schedule-container">
       <div class="projects-sidebar">
         <h3>可分配项目</h3>
         <div class="projects-box" id="projectsBox">
           <div id="projects"></div>
         </div>
+
         <div class="trash-box" id="trashBox">
           <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA..." alt="trash icon (placeholder)" />
         </div>
       </div>
+
       <div class="schedule" id="schedule"></div>
     </div>
+
     <div class="input-area">
       <input id="newTaskInput" class="text-input" placeholder="输入新任务（例如：Chefonic (009999-10)），按 Submit 生成任务方块" />
       <button id="submitTask" class="submit-btn">Submit</button>
@@ -287,20 +281,25 @@
     const newTaskInput = document.getElementById('newTaskInput');
     const submitTask = document.getElementById('submitTask');
     const trashBox = document.getElementById('trashBox');
+
     const today = new Date();
     todayDate.innerText = '日期：' + today.toLocaleDateString('zh-CN');
+
     const hours = ['8:30','9:30','10:30','11:30','12:00','1:00','2:00','3:00','4:00','5:00','5:30','6:00','7:00','8:00','9:00','10:00'];
     const breakCols = [4, 10];
+
     const emptyHeader = document.createElement('div');
     emptyHeader.className = 'header';
     emptyHeader.innerText = '员工/时间';
     schedule.appendChild(emptyHeader);
+
     hours.forEach((h) => {
       const th = document.createElement('div');
       th.className = 'time-header';
       th.innerText = h;
       schedule.appendChild(th);
     });
+
     const employees = [
       { id: 'emp1', name: 'Albert' },
       { id: 'emp2', name: 'Aung Thant' },
@@ -312,6 +311,7 @@
       { id: 'emp10', name: 'Yu Jun' },
       { id: 'emp11', name: 'Bunyao' }
     ];
+
     employees.forEach((emp, rowIndex) => {
       const empDiv = document.createElement('div');
       empDiv.className = 'employee-name';
@@ -329,6 +329,7 @@
         schedule.appendChild(cell);
       });
     });
+
     const initialProjects = [
       { id: 'project1', name: 'Legoland (004587-40)' },
       { id: 'project2', name: 'Legoland (004923-3)' },
@@ -349,8 +350,10 @@
         }
       }
     });
+
     let selectedCell=null;
     let dragInfo=null;
+
     function createProjectElement(project, insertAtTop=false){
       const projectDiv=document.createElement('div');
       projectDiv.className='project';
@@ -368,6 +371,7 @@
           projectDiv.style.background=projectCodeColorMap[code];
         }
       }
+
       projectDiv.addEventListener('dragstart',function(e){
         if(!selectedCell||selectedCell.classList.contains('break')){
           e.preventDefault();return;
@@ -390,6 +394,7 @@
         e.dataTransfer.setDragImage(clone,clone.offsetWidth/2,clone.offsetHeight/2);
         setTimeout(()=>clone.remove(),0);
       });
+
       projectDiv.addEventListener('dragend',function(){
         if(dragInfo&&dragInfo.cells.length>0){
           createMergedProject(dragInfo);
@@ -397,6 +402,7 @@
         }
         this.classList.remove('dragging');
       });
+
       if(insertAtTop&&projectsContainer.firstChild){
         projectsContainer.insertBefore(projectDiv,projectsContainer.firstChild);
       }else{
@@ -404,7 +410,9 @@
       }
       return projectDiv;
     }
+
     initialProjects.forEach(p=>createProjectElement(p));
+
     const allCells=document.querySelectorAll('.cell');
     allCells.forEach(cell=>{
       if(cell.classList.contains('break'))return;
@@ -430,81 +438,145 @@
         clearHighlights();
       });
     });
+
+    function isDraggingOverAnyCell(){
+      return Array.from(allCells).some(cell=>cell.matches(':hover')||cell.querySelector(':hover'));
+    }
+    function highlightCells(startCell,endCell){
+      clearHighlights();
+      if(!startCell||!endCell)return;
+      const row=startCell.dataset.row;
+      if(row!==endCell.dataset.row)return;
+      let start=parseInt(startCell.dataset.col);
+      let end=parseInt(endCell.dataset.col);
+      if(end<start)[start,end]=[end,start];
+      const validCells=[];
+      for(let c=start;c<=end;c++){
+        if(breakCols.includes(c))continue;
+        const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
+        if(cell){cell.classList.add('highlight');validCells.push(cell);}
+      }
+      dragInfo.cells=validCells;
+    }
+    function clearHighlights(){
+      document.querySelectorAll('.cell.highlight').forEach(cell=>cell.classList.remove('highlight'));
+    }
+
+    function createMergedProject(dragInfo){
+      if(!dragInfo||dragInfo.cells.length===0)return;
+      dragInfo.cells=dragInfo.cells.filter(c=>!breakCols.includes(parseInt(c.dataset.col)));
+      if(dragInfo.cells.length===0)return;
+      dragInfo.cells.sort((a,b)=>parseInt(a.dataset.col)-parseInt(b.dataset.col));
+      const row=dragInfo.cells[0].dataset.row;
+      const startCol=parseInt(dragInfo.cells[0].dataset.col);
+      const endCol=parseInt(dragInfo.cells[dragInfo.cells.length-1].dataset.col);
+      let segment=[];let segments=[];
+      for(let c=startCol;c<=endCol;c++){
+        if(breakCols.includes(c)){
+          if(segment.length>0){segments.push(segment);segment=[];}
+        }else{
+          const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
+          if(cell)segment.push(cell);
+        }
+      }
+      if(segment.length>0)segments.push(segment);
+      segments.forEach(seg=>{
+        const tempInfo={...dragInfo,cells:seg};
+        makeOneMergedBlock(tempInfo);
+      });
+    }
+
+    function makeOneMergedBlock(dragInfo){
+      if(dragInfo.cells.length===0)return;
+      dragInfo.cells.sort((a,b)=>parseInt(a.dataset.col)-parseInt(b.dataset.col));
+      const row=dragInfo.cells[0].dataset.row;
+      const startCol=parseInt(dragInfo.cells[0].dataset.col);
+      const endCol=parseInt(dragInfo.cells[dragInfo.cells.length-1].dataset.col);
+      dragInfo.cells.forEach(c=>c.classList.add('occupied'));
+      const merged=document.createElement('div');
+      merged.className='assigned-project merged';
+      merged.innerText=dragInfo.projectName;
+      merged.dataset.row=row;
+      merged.dataset.startCol=startCol;
+      merged.dataset.endCol=endCol;
+      const codeMatch=dragInfo.projectName.match(/\((\d+)-/);
+      if(codeMatch&&projectCodeColorMap[codeMatch[1]]){
+        merged.style.background=projectCodeColorMap[codeMatch[1]];
+      }
+      if(dragInfo.cells.length===1){merged.style.fontSize='14px';}
+      const first=dragInfo.cells[0];
+      const last=dragInfo.cells[dragInfo.cells.length-1];
+      const firstRect=first.getBoundingClientRect();
+      const lastRect=last.getBoundingClientRect();
+      const schedRect=schedule.getBoundingClientRect();
+      const rawLeft=firstRect.left-schedRect.left;
+      const rawWidth=lastRect.right-firstRect.left;
+      const top=firstRect.top-schedRect.top;
+      const height=firstRect.height;
+      merged.style.left=rawLeft+'px';
+      merged.style.width=rawWidth+'px';
+      merged.style.top=top+'px';
+      merged.style.height=height+'px';
+      merged.addEventListener('click',function(e){
+        e.stopPropagation();
+        const row=this.dataset.row;
+        const start=parseInt(this.dataset.startCol);
+        const end=parseInt(this.dataset.endCol);
+        for(let c=start;c<=end;c++){
+          const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
+          if(cell)cell.classList.remove('occupied');
+        }
+        this.remove();
+      });
+      schedule.appendChild(merged);
+      spawnGreenFlame(merged);
+    }
+
+    // ✅ 添加绿色火焰生成函数
+    function spawnGreenFlame(target){
+      const rect = target.getBoundingClientRect();
+      const flame = document.createElement('div');
+      flame.className = 'green-flame';
+      flame.style.left = (rect.left + rect.width/2 - 40) + 'px';
+      flame.style.top = (rect.top + rect.height/2 - 40 + window.scrollY) + 'px';
+      document.body.appendChild(flame);
+      setTimeout(()=>flame.remove(), 800);
+    }
+
+    submitTask.addEventListener('click',function(){
+      const val=newTaskInput.value.trim();
+      if(!val)return;
+      const id='project_new_'+Date.now();
+      const project={id:id,name:val};
+      createProjectElement(project,true);
+      newTaskInput.value='';
+      projectsBox.scrollTop=0;
+      spawnGreenFlame(submitTask);
+    });
+
+    newTaskInput.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){e.preventDefault();submitTask.click();}
+    });
+
     trashBox.addEventListener('dragover',function(e){
       e.preventDefault();
-      trashBox.classList.add('dragover');
+      this.classList.add('dragover');
     });
     trashBox.addEventListener('dragleave',function(){
-      trashBox.classList.remove('dragover');
+      this.classList.remove('dragover');
     });
     trashBox.addEventListener('drop',function(e){
       e.preventDefault();
-      trashBox.classList.remove('dragover');
+      this.classList.remove('dragover');
       const projectId=e.dataTransfer.getData('text/plain');
-      const projectElement=document.getElementById(projectId);
-      if(projectElement){
-        projectElement.remove();
-        document.querySelectorAll('.assigned-project').forEach(el=>{
-          if(el.dataset.projectId===projectId){
-            el.remove();
-          }
-        });
+      const el=document.getElementById(projectId);
+      if(el && !projectId.startsWith('project_new_')) {
+        alert('⚠️ 初始任务不可删除');
+        return;
       }
-    });
-    function highlightCells(start,end){
-      clearHighlights();
-      const row=Number(start.dataset.row);
-      const startCol=Number(start.dataset.col);
-      const endCol=Number(end.dataset.col);
-      const minCol=Math.min(startCol,endCol);
-      const maxCol=Math.max(startCol,endCol);
-      for(let c=minCol;c<=maxCol;c++){
-        const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
-        if(cell&&!cell.classList.contains('break'))cell.classList.add('highlight');
-      }
-    }
-    function clearHighlights(){
-      document.querySelectorAll('.cell.highlight').forEach(c=>c.classList.remove('highlight'));
-    }
-    function isDraggingOverAnyCell(){
-      return Array.from(document.querySelectorAll('.cell.highlight')).some(c=>c.matches(':hover'));
-    }
-    function createMergedProject(info){
-      const highlighted=document.querySelectorAll('.cell.highlight');
-      if(highlighted.length===0)return;
-      const first=highlighted[0];
-      const last=highlighted[highlighted.length-1];
-      const merged=document.createElement('div');
-      merged.className='assigned-project merged';
-      merged.dataset.projectId=info.projectId;
-      merged.dataset.projectName=info.projectName;
-      merged.innerText=info.projectName;
-      const row=Number(first.dataset.row);
-      const startCol=Number(first.dataset.col);
-      const endCol=Number(last.dataset.col);
-      const top=first.offsetTop;
-      const left=first.offsetLeft;
-      const width=last.offsetLeft+last.offsetWidth-left;
-      const height=first.offsetHeight;
-      merged.style.top=top+'px';
-      merged.style.left=left+'px';
-      merged.style.width=width+'px';
-      merged.style.height=height+'px';
-      const codeMatch=info.projectName.match(/\((\d+)-/);
-      if(codeMatch){
-        const code=codeMatch[1];
-        if(projectCodeColorMap[code]){
-          merged.style.background=projectCodeColorMap[code];
-        }
-      }
-      schedule.appendChild(merged);
-      clearHighlights();
-    }
-    submitTask.addEventListener('click',()=>{
-      const text=newTaskInput.value.trim();
-      if(text){
-        createProjectElement({id:'p'+Date.now(),name:text},true);
-        newTaskInput.value='';
+      if(el && el.parentElement){
+        el.remove();
+        spawnGreenFlame(trashBox);
       }
     });
   });
