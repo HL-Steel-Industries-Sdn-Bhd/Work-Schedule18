@@ -13,8 +13,6 @@
       color: #333;
       line-height: 1.5;
       font-size: 20px;
-      position: relative;
-      overflow-x: hidden;
     }
     .header-bar {
       display: flex;
@@ -35,6 +33,25 @@
       display: inline-block;
       margin: 0;
     }
+    /* new: save button left of date */
+    .save-btn {
+      margin-right: 10px;
+      padding: 8px 12px;
+      background:#2ecc71;
+      color:white;
+      border-radius:6px;
+      border:none;
+      cursor:pointer;
+      font-size:16px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.12);
+    }
+    .save-btn:active { transform: translateY(1px); }
+    .save-status {
+      font-size: 14px;
+      color: #666;
+      margin-left: 10px;
+    }
+
     .container {
       max-width: 100%;
       margin: 0 auto;
@@ -43,7 +60,6 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       padding: 20px;
       overflow: hidden;
-      position: relative;
     }
     .schedule-container { display: flex; gap: 20px; margin-bottom: 12px; position: relative; }
     .projects-sidebar {
@@ -59,6 +75,7 @@
       text-align: center;
     }
 
+    /* ✅固定高度（缩短30%后）*/
     .projects-box {
       background: #fff;
       border-radius: 8px;
@@ -88,6 +105,7 @@
     .project:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.12); }
     .project.dragging { opacity: 0.8; transform: scale(1.03); box-shadow: 0 6px 12px rgba(0,0,0,0.18); }
 
+    /* ✅ 垃圾桶区域样式 */
     .trash-box {
       width: 100%;
       height: 80px;
@@ -223,32 +241,18 @@
       .projects-sidebar { width: 200px; }
       .text-input { font-size: 16px; }
     }
-
-    /* ✅绿色火焰效果 */
-    .green-flame {
-      position: absolute;
-      width: 80px;
-      height: 80px;
-      background: radial-gradient(circle at 50% 50%, rgba(0,255,100,0.8), rgba(0,255,150,0.3), transparent 70%);
-      border-radius: 50%;
-      pointer-events: none;
-      animation: flamePulse 0.8s ease-out forwards;
-      z-index: 9999;
-      mix-blend-mode: screen;
-    }
-
-    @keyframes flamePulse {
-      0% { transform: scale(0.5); opacity: 1; }
-      50% { transform: scale(1.5); opacity: 0.8; }
-      100% { transform: scale(2); opacity: 0; }
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header-bar">
       <h2>项目排班表</h2>
-      <div class="date" id="todayDate">日期：</div>
+      <div style="display:flex; align-items:center;">
+        <!-- Save 按钮：放在日期左边 -->
+        <button id="saveNowBtn" class="save-btn">Save</button>
+        <div class="date" id="todayDate">日期：</div>
+        <div class="save-status" id="saveStatus" aria-live="polite" style="margin-left:8px;">未保存</div>
+      </div>
     </div>
 
     <div class="schedule-container">
@@ -258,6 +262,7 @@
           <div id="projects"></div>
         </div>
 
+        <!-- ✅ 垃圾桶占位区域（你可替换成自己的 base64 图片） -->
         <div class="trash-box" id="trashBox">
           <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA..." alt="trash icon (placeholder)" />
         </div>
@@ -281,8 +286,23 @@
     const newTaskInput = document.getElementById('newTaskInput');
     const submitTask = document.getElementById('submitTask');
     const trashBox = document.getElementById('trashBox');
+    const saveNowBtn = document.getElementById('saveNowBtn');
+    const saveStatus = document.getElementById('saveStatus');
+
+    // ------------------ CONFIG: replace this with your deployed Apps Script Web App URL ------------------
+    const API_URL = 'https://script.google.com/macros/s/<<YOUR_DEPLOY_ID>>/exec';
+    // ----------------------------------------------------------------------------------------------------------------
+
+    function formatDateForTab(d) {
+      // produce YYYY-MM-DD
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    }
 
     const today = new Date();
+    const todayTabName = formatDateForTab(today);
     todayDate.innerText = '日期：' + today.toLocaleDateString('zh-CN');
 
     const hours = ['8:30','9:30','10:30','11:30','12:00','1:00','2:00','3:00','4:00','5:00','5:30','6:00','7:00','8:00','9:00','10:00'];
@@ -461,7 +481,6 @@
     function clearHighlights(){
       document.querySelectorAll('.cell.highlight').forEach(cell=>cell.classList.remove('highlight'));
     }
-
     function createMergedProject(dragInfo){
       if(!dragInfo||dragInfo.cells.length===0)return;
       dragInfo.cells=dragInfo.cells.filter(c=>!breakCols.includes(parseInt(c.dataset.col)));
@@ -485,7 +504,6 @@
         makeOneMergedBlock(tempInfo);
       });
     }
-
     function makeOneMergedBlock(dragInfo){
       if(dragInfo.cells.length===0)return;
       dragInfo.cells.sort((a,b)=>parseInt(a.dataset.col)-parseInt(b.dataset.col));
@@ -529,18 +547,6 @@
         this.remove();
       });
       schedule.appendChild(merged);
-      spawnGreenFlame(merged);
-    }
-
-    // ✅ 添加绿色火焰生成函数
-    function spawnGreenFlame(target){
-      const rect = target.getBoundingClientRect();
-      const flame = document.createElement('div');
-      flame.className = 'green-flame';
-      flame.style.left = (rect.left + rect.width/2 - 40) + 'px';
-      flame.style.top = (rect.top + rect.height/2 - 40 + window.scrollY) + 'px';
-      document.body.appendChild(flame);
-      setTimeout(()=>flame.remove(), 800);
     }
 
     submitTask.addEventListener('click',function(){
@@ -551,13 +557,12 @@
       createProjectElement(project,true);
       newTaskInput.value='';
       projectsBox.scrollTop=0;
-      spawnGreenFlame(submitTask);
     });
-
     newTaskInput.addEventListener('keydown',function(e){
       if(e.key==='Enter'){e.preventDefault();submitTask.click();}
     });
 
+    // ✅ 垃圾桶拖拽删除逻辑
     trashBox.addEventListener('dragover',function(e){
       e.preventDefault();
       this.classList.add('dragover');
@@ -570,15 +575,99 @@
       this.classList.remove('dragover');
       const projectId=e.dataTransfer.getData('text/plain');
       const el=document.getElementById(projectId);
+      // 初始项目不可删
       if(el && !projectId.startsWith('project_new_')) {
         alert('⚠️ 初始任务不可删除');
         return;
       }
       if(el && el.parentElement){
         el.remove();
-        spawnGreenFlame(trashBox);
       }
     });
+
+    /* --- SAVE TO GS START --- */
+    // collect current schedule state (merged blocks)
+    function collectCurrentSchedule() {
+      const mergedEls = Array.from(document.querySelectorAll('.assigned-project'));
+      // Exclude any assigned-project elements that might be inside the projects sidebar
+      const scheduleMerged = mergedEls.filter(el => {
+        return schedule.contains(el) && el.classList.contains('merged');
+      });
+
+      const rows = scheduleMerged.map(el => {
+        return {
+          row: Number(el.dataset.row),
+          startCol: Number(el.dataset.startCol),
+          endCol: Number(el.dataset.endCol),
+          name: el.innerText.trim(),
+          color: el.style.background || ''
+        };
+      });
+
+      // Add meta: date and employees mapping
+      const employeeNames = Array.from(document.querySelectorAll('.employee-name')).map(e=>e.innerText.trim());
+      return {
+        date: todayTabName, // YYYY-MM-DD, used as tab name in Sheet
+        generatedAt: (new Date()).toISOString(),
+        employees: employeeNames,
+        blocks: rows
+      };
+    }
+
+    // call API to save to GS (POST JSON)
+    async function saveToGS() {
+      const payload = collectCurrentSchedule();
+      // fast feedback
+      saveStatus.innerText = '保存中...';
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if(!res.ok) {
+          const text = await res.text();
+          saveStatus.innerText = '保存失败';
+          console.error('saveToGS failed', res.status, text);
+        } else {
+          const data = await res.json().catch(()=>null);
+          saveStatus.innerText = '已保存 ' + new Date().toLocaleTimeString();
+          // optionally show server message in console
+          console.log('save success', data);
+        }
+      } catch(err) {
+        saveStatus.innerText = '保存错误';
+        console.error('saveToGS error', err);
+      }
+    }
+
+    // Save now button
+    saveNowBtn.addEventListener('click', function(){
+      saveToGS();
+    });
+
+    // Auto save every 30 seconds (only send latest)
+    const AUTO_SAVE_INTERVAL_MS = 30000; // 30s
+    let autoSaveTimer = setInterval(() => {
+      saveToGS();
+    }, AUTO_SAVE_INTERVAL_MS);
+
+    // ensure save on page unload (best effort)
+    window.addEventListener('beforeunload', function(e){
+      // synchronous send is deprecated; try navigator.sendBeacon as best effort
+      try {
+        const payload = collectCurrentSchedule();
+        if (navigator.sendBeacon && API_URL) {
+          const blob = new Blob([JSON.stringify(payload)], {type: 'application/json'});
+          navigator.sendBeacon(API_URL, blob);
+        }
+      } catch(err) {
+        // ignore
+      }
+    });
+    /* --- SAVE TO GS END --- */
+
+    // end of DOMContentLoaded
   });
   </script>
 </body>
